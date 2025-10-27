@@ -3,6 +3,16 @@
 #include <string>
 #include <vector>
 
+#if defined(_WIN32)
+  #if defined(DEVESCAPE_EXPORTS)
+    #define DEVESCAPE_API __declspec(dllexport)
+  #else
+    #define DEVESCAPE_API __declspec(dllimport)
+  #endif
+#else
+  #define DEVESCAPE_API
+#endif
+
 namespace devescape {
 
 struct HintTier {

@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Find required packages
+# Required packages
 find_package(SDL2 CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(nlohmann_json CONFIG REQUIRED)
@@ -15,7 +15,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/include
 )
 
-# Framework sources (to be built as a shared library)
+# Framework sources (built as shared DLL)
 set(FRAMEWORK_SOURCES
     src/framework/PluginManager.cpp
     src/framework/AudioManager.cpp
@@ -28,7 +28,7 @@ set(FRAMEWORK_SOURCES
     src/framework/GameLoop.cpp
 )
 
-# Create SHARED library for the framework
+# Build framework as shared library/dll
 add_library(devescape_framework SHARED ${FRAMEWORK_SOURCES})
 
 target_link_libraries(devescape_framework PUBLIC
@@ -38,13 +38,13 @@ target_link_libraries(devescape_framework PUBLIC
     nlohmann_json::nlohmann_json
 )
 
-# Export symbols on Windows
+# Windows-specific symbol export macros
 if(WIN32)
     target_compile_definitions(devescape_framework PRIVATE DEVESCAPE_EXPORTS)
     target_compile_definitions(devescape_framework INTERFACE DEVESCAPE_IMPORTS)
 endif()
 
-# Main executable (just contains main.cpp)
+# Main executable (uses the framework DLL)
 add_executable(devescape src/main.cpp)
 
 target_link_libraries(devescape PRIVATE
@@ -54,7 +54,7 @@ target_link_libraries(devescape PRIVATE
 
 # Platform-specific settings
 if(WIN32)
-    # Windows: Make sure framework DLL is in same directory as exe
+    # Ensure framework DLL is next to executable
     set_target_properties(devescape_framework PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/$<CONFIG>
@@ -68,5 +68,5 @@ endif()
 # Install targets
 install(TARGETS devescape devescape_framework DESTINATION bin)
 
-# Add plugin subdirectories
+# Add plugins
 add_subdirectory(plugins/production_incident)

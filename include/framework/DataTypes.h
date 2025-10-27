@@ -6,15 +6,14 @@
 #include <memory>
 #include <chrono>
 
-// DLL export/import macros
-#ifdef _WIN32
-    #ifdef DEVESCAPE_EXPORTS
-        #define DEVESCAPE_API __declspec(dllexport)
-    #else
-        #define DEVESCAPE_API __declspec(dllimport)
-    #endif
+#if defined(_WIN32)
+  #if defined(DEVESCAPE_EXPORTS)
+    #define DEVESCAPE_API __declspec(dllexport)
+  #else
+    #define DEVESCAPE_API __declspec(dllimport)
+  #endif
 #else
-    #define DEVESCAPE_API
+  #define DEVESCAPE_API
 #endif
 
 namespace devescape {
