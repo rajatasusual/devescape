@@ -16,7 +16,7 @@ struct PluginInfo {
     void* handle;  // Library handle
 };
 
-class PluginManager {
+class DEVESCAPE_API PluginManager {
 public:
     PluginManager(const std::string& pluginDirectory);
     ~PluginManager();

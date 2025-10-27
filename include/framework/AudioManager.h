@@ -8,7 +8,7 @@
 
 namespace devescape {
 
-class AudioManager {
+class DEVESCAPE_API AudioManager {
 public:
     AudioManager();
     ~AudioManager();
@@ -16,16 +16,13 @@ public:
     bool initialize();
     void cleanup();
 
-    // Music control
     void playTheme(const std::string& themeName, ThemeType type);
     void stopMusic();
-    void setMusicVolume(float volume); // 0.0 to 1.0
+    void setMusicVolume(float volume);
 
-    // Dynamic scoring based on game state
     void updateTensionLevel(float percentTimeRemaining);
     void updateForPuzzleType(PuzzleType type);
 
-    // Sound effects
     void playSoundEffect(const std::string& effectName);
 
 private:
@@ -48,14 +45,12 @@ private:
     ThemeType currentTheme_;
     float tensionLevel_;
 
-    // Wave generation
     static void audioCallback(void* userdata, uint8_t* stream, int len);
     void generateAudioFrame(float* buffer, int frameCount);
     float generateSquareWave(const Channel& ch);
     float generateTriangleWave(const Channel& ch);
     float generateNoiseWave(const Channel& ch);
 
-    // Theme definitions
     void loadThemeParameters(ThemeType theme);
 };
 

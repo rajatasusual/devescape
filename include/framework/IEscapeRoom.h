@@ -10,7 +10,7 @@ namespace devescape {
 /**
  * Base interface that all escape room plugins must implement
  */
-class IEscapeRoom {
+class DEVESCAPE_API IEscapeRoom {
 public:
     virtual ~IEscapeRoom() = default;
 

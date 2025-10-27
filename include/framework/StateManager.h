@@ -13,7 +13,7 @@ struct GameSession {
     int timeRemainingSeconds;
 };
 
-class StateManager {
+class DEVESCAPE_API StateManager {
 public:
     StateManager(const std::string& checkpointDir);
     ~StateManager();

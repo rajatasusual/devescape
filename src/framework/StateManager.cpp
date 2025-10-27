@@ -5,19 +5,12 @@
 #include <iomanip>
 #include <filesystem>
 #include <chrono>
+#include <algorithm>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 namespace devescape {
-
-void GameState::addEvent(const std::string& event) {
-    auto now = std::chrono::system_clock::now();
-    auto time_t = std::chrono::system_clock::to_time_t(now);
-    std::ostringstream oss;
-    oss << std::put_time(std::localtime(&time_t), "%Y-%m-%dT%H:%M:%SZ") << ": " << event;
-    eventLog.push_back(oss.str());
-}
 
 StateManager::StateManager(const std::string& checkpointDir) 
     : checkpointDirectory_(checkpointDir) {
@@ -30,7 +23,14 @@ std::string StateManager::generateSessionId() const {
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);
     std::ostringstream oss;
-    oss << "session_" << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S");
+    std::tm tm;
+#ifdef _WIN32
+    localtime_s(&tm, &time_t);
+    oss << "session_" << std::put_time(&tm, "%Y%m%d_%H%M%S");
+#else
+    localtime_r(&time_t, &tm);
+    oss << "session_" << std::put_time(&tm, "%Y%m%d_%H%M%S");
+#endif
     return oss.str();
 }
 
@@ -45,12 +45,26 @@ std::string StateManager::serializeSession(const GameSession& session) const {
     auto startTime = std::chrono::system_clock::to_time_t(session.metadata.startedAt);
     auto checkpointTime = std::chrono::system_clock::to_time_t(session.metadata.checkpointedAt);
 
+    std::ostringstream startTimeStr, checkpointTimeStr;
+    std::tm tm;
+#ifdef _WIN32
+    localtime_s(&tm, &startTime);
+    startTimeStr << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+    localtime_s(&tm, &checkpointTime);
+    checkpointTimeStr << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+#else
+    localtime_r(&startTime, &tm);
+    startTimeStr << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+    localtime_r(&checkpointTime, &tm);
+    checkpointTimeStr << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+#endif
+
     j["session"] = {
         {"id", session.metadata.id},
         {"room_name", session.metadata.roomName},
         {"player_name", session.metadata.playerName},
-        {"started_at", std::ctime(&startTime)},
-        {"checkpointed_at", std::ctime(&checkpointTime)},
+        {"started_at", startTimeStr.str()},
+        {"checkpointed_at", checkpointTimeStr.str()},
         {"total_time_seconds", session.metadata.totalTimeSeconds},
         {"time_elapsed_seconds", session.metadata.timeElapsedSeconds},
         {"time_remaining_seconds", session.timeRemainingSeconds},
@@ -78,7 +92,7 @@ std::string StateManager::serializeSession(const GameSession& session) const {
         {"event_log", session.currentRoomState.eventLog}
     };
 
-    return j.dump(2);  // Pretty print with 2-space indent
+    return j.dump(2);
 }
 
 bool StateManager::deserializeSession(const std::string& jsonData, GameSession& session) const {
@@ -114,7 +128,7 @@ bool StateManager::deserializeSession(const std::string& jsonData, GameSession& 
         session.currentRoomState.eventLog = j["room_state"]["event_log"].get<std::vector<std::string>>();
 
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         return false;
     }
 }
@@ -164,7 +178,6 @@ std::vector<std::string> StateManager::listRecentCheckpoints(int maxCount) const
             }
         }
 
-        // Sort by modification time (most recent first)
         std::sort(checkpoints.begin(), checkpoints.end(), std::greater<std::string>());
 
         if (checkpoints.size() > static_cast<size_t>(maxCount)) {

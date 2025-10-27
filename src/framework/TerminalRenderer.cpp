@@ -16,11 +16,6 @@
 
 namespace devescape {
 
-#ifndef _WIN32
-bool TerminalControl::originalModeStored_ = false;
-struct termios TerminalControl::originalTermios_;
-#endif
-
 TerminalRenderer::TerminalRenderer() : width_(80), height_(24) {
     initialize();
 }
@@ -72,7 +67,21 @@ std::string TerminalRenderer::getColorCode(ColorType color, bool bold) const {
 
 void TerminalRenderer::clearScreen() {
 #ifdef _WIN32
-    system("cls");
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    COORD coordScreen = {0, 0};
+    DWORD cCharsWritten;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    DWORD dwConSize;
+
+    if (!GetConsoleScreenBufferInfo(hConsole, &csbi)) {
+        return;
+    }
+    dwConSize = csbi.dwSize.X * csbi.dwSize.Y;
+
+    FillConsoleOutputCharacter(hConsole, (TCHAR)' ', dwConSize, coordScreen, &cCharsWritten);
+    GetConsoleScreenBufferInfo(hConsole, &csbi);
+    FillConsoleOutputAttribute(hConsole, csbi.wAttributes, dwConSize, coordScreen, &cCharsWritten);
+    SetConsoleCursorPosition(hConsole, coordScreen);
 #else
     std::cout << "\033[2J\033[H";
 #endif
@@ -80,57 +89,60 @@ void TerminalRenderer::clearScreen() {
 }
 
 void TerminalRenderer::drawBox(int x, int y, int w, int h, const std::string& title) {
-    if (x < 0 || y < 0 || x + w >= width_ || y + h >= height_) return;
+    if (x < 0 || y < 0 || x + w > width_ || y + h > height_) return;
+    if (w < 2 || h < 2) return;
 
     // Top border with title
-    std::string topLine = "┌";
-    if (!title.empty()) {
-        topLine += "─ " + title + " ";
-        int remaining = w - title.length() - 4;
+    std::string topLine = "+";
+    if (!title.empty() && title.length() + 4 < static_cast<size_t>(w)) {
+        topLine += "- " + title + " ";
+        int remaining = w - static_cast<int>(title.length()) - 5;
         topLine += std::string(std::max<int>(0, remaining), '-');
     } else {
-        topLine += std::string(w - 2, '─');
+        topLine += std::string(w - 2, '-');
     }
-    topLine += "┐";
+    topLine += "+";
 
-    if (y < height_) {
-        screenBuffer_[y] = screenBuffer_[y].substr(0, x) + topLine + 
-                          screenBuffer_[y].substr(std::min<int>(x + w, width_));
+    if (y < height_ && static_cast<size_t>(x + topLine.length()) <= static_cast<size_t>(width_)) {
+        screenBuffer_[y].replace(x, topLine.length(), topLine);
     }
 
     // Sides
     for (int i = 1; i < h - 1; ++i) {
         if (y + i < height_) {
-            screenBuffer_[y + i][x] = '│';
-            screenBuffer_[y + i][x + w - 1] = '│';
+            if (x < width_) screenBuffer_[y + i][x] = '|';
+            if (x + w - 1 < width_) screenBuffer_[y + i][x + w - 1] = '|';
         }
     }
 
     // Bottom border
-    std::string bottomLine = "└" + std::string(w - 2, '─') + "┘";
-    if (y + h - 1 < height_) {
-        screenBuffer_[y + h - 1] = screenBuffer_[y + h - 1].substr(0, x) + bottomLine +
-                                   screenBuffer_[y + h - 1].substr(std::min<int>(x + w, width_));
+    std::string bottomLine = "+" + std::string(w - 2, '-') + "+";
+    if (y + h - 1 < height_ && static_cast<size_t>(x + bottomLine.length()) <= static_cast<size_t>(width_)) {
+        screenBuffer_[y + h - 1].replace(x, bottomLine.length(), bottomLine);
     }
 }
 
 void TerminalRenderer::drawText(int x, int y, const std::string& text, ColorType color, bool bold) {
-    if (y < 0 || y >= height_) return;
+    if (y < 0 || y >= height_ || x < 0) return;
 
     std::string coloredText = getColorCode(color, bold) + text + getColorCode(ColorType::DEFAULT);
 
-    // Insert text into buffer (accounting for ANSI codes)
-    if (x >= 0 && x < width_) {
-        std::string& line = screenBuffer_[y];
-        line = line.substr(0, x) + coloredText + line.substr(std::min<int>(x + static_cast<int>(text.length()), width_));
+    // Simple text insertion (note: ANSI codes don't count toward visible width)
+    if (x < width_) {
+        size_t remainingSpace = width_ - x;
+        if (text.length() <= remainingSpace) {
+            // For simplicity on Windows, just insert raw text without ANSI for now
+            // Full ANSI support on Windows requires VT100 mode enabled
+            screenBuffer_[y].replace(x, text.length(), text);
+        }
     }
 }
 
 void TerminalRenderer::drawProgressBar(int x, int y, float percent, int width, ColorType color) {
-    if (y < 0 || y >= height_) return;
+    if (y < 0 || y >= height_ || x < 0) return;
 
-    int filled = static_cast<int>(width * percent);
-    std::string bar = "[" + std::string(filled, '█') + std::string(width - filled, '░') + "]";
+    int filled = static_cast<int>(width * std::max<float>(0.0f, std::min<float>(1.0f, percent)));
+    std::string bar = "[" + std::string(filled, '#') + std::string(width - filled, '-') + "]";
     drawText(x, y, bar, color);
 }
 
@@ -159,7 +171,14 @@ std::string TerminalRenderer::formatTime(int seconds) const {
 }
 
 void TerminalRenderer::render() {
-    clearScreen();
+    // Move cursor to top-left
+#ifdef _WIN32
+    COORD coordScreen = {0, 0};
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coordScreen);
+#else
+    std::cout << "\033[H";
+#endif
+
     for (const auto& line : screenBuffer_) {
         std::cout << line << "\n";
     }
@@ -181,61 +200,5 @@ void TerminalRenderer::setCursorVisible(bool visible) {
     }
 #endif
 }
-
-// Terminal Control Implementation
-#ifndef _WIN32
-void TerminalControl::disableEcho() {
-    if (!originalModeStored_) {
-        tcgetattr(STDIN_FILENO, &originalTermios_);
-        originalModeStored_ = true;
-    }
-
-    struct termios newTermios = originalTermios_;
-    newTermios.c_lflag &= ~ECHO;
-    tcsetattr(STDIN_FILENO, TCSANOW, &newTermios);
-}
-
-void TerminalControl::enableEcho() {
-    if (originalModeStored_) {
-        tcsetattr(STDIN_FILENO, TCSANOW, &originalTermios_);
-    }
-}
-
-void TerminalControl::setRawMode() {
-    if (!originalModeStored_) {
-        tcgetattr(STDIN_FILENO, &originalTermios_);
-        originalModeStored_ = true;
-    }
-
-    struct termios raw = originalTermios_;
-    raw.c_lflag &= ~(ICANON | ECHO);
-    raw.c_cc[VMIN] = 0;
-    raw.c_cc[VTIME] = 0;
-    tcsetattr(STDIN_FILENO, TCSANOW, &raw);
-
-    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-}
-
-void TerminalControl::restoreTerminalMode() {
-    if (originalModeStored_) {
-        tcsetattr(STDIN_FILENO, TCSANOW, &originalTermios_);
-    }
-    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-    fcntl(STDIN_FILENO, F_SETFL, flags & ~O_NONBLOCK);
-}
-
-std::string TerminalControl::readInputNonBlocking() {
-    std::string input;
-    char c;
-    while (read(STDIN_FILENO, &c, 1) > 0) {
-        if (c == '\n' || c == '\r') {
-            return input;
-        }
-        input += c;
-    }
-    return input;
-}
-#endif
 
 } // namespace devescape

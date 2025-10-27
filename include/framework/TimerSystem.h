@@ -7,7 +7,7 @@ namespace devescape {
 
 class AudioManager;
 
-class TimerSystem {
+class DEVESCAPE_API TimerSystem {
 public:
     TimerSystem(int totalSeconds, AudioManager* audioMgr);
 

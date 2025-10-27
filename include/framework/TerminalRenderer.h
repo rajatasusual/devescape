@@ -6,30 +6,25 @@
 
 namespace devescape {
 
-class TerminalRenderer {
+class DEVESCAPE_API TerminalRenderer {
 public:
     TerminalRenderer();
     ~TerminalRenderer();
 
-    // Initialize terminal dimensions
     void initialize();
 
-    // Drawing primitives
     void drawBox(int x, int y, int w, int h, const std::string& title);
     void drawText(int x, int y, const std::string& text, ColorType color = ColorType::DEFAULT, bool bold = false);
     void drawProgressBar(int x, int y, float percent, int width, ColorType color);
     void drawTimer(int x, int y, int secondsRemaining, PressureLevel pressure);
 
-    // Screen management
     void clearScreen();
-    void render();  // Write buffer to terminal
+    void render();
     void setCursorVisible(bool visible);
 
-    // Terminal properties
     int getWidth() const { return width_; }
     int getHeight() const { return height_; }
 
-    // ANSI color codes
     std::string getColorCode(ColorType color, bool bold = false) const;
 
 private:
@@ -41,8 +36,7 @@ private:
     std::string formatTime(int seconds) const;
 };
 
-// Terminal control functions
-class TerminalControl {
+class DEVESCAPE_API TerminalControl {
 public:
     static void disableEcho();
     static void enableEcho();
@@ -54,9 +48,7 @@ public:
 
 private:
     static bool originalModeStored_;
-#ifdef _WIN32
-    static void* originalMode_;
-#else
+#ifndef _WIN32
     static struct termios originalTermios_;
 #endif
 };

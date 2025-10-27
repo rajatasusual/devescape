@@ -6,26 +6,34 @@
 #include <memory>
 #include <chrono>
 
+// DLL export/import macros
+#ifdef _WIN32
+    #ifdef DEVESCAPE_EXPORTS
+        #define DEVESCAPE_API __declspec(dllexport)
+    #else
+        #define DEVESCAPE_API __declspec(dllimport)
+    #endif
+#else
+    #define DEVESCAPE_API
+#endif
+
 namespace devescape {
 
-// Forward declarations
 class TerminalRenderer;
 class AudioManager;
 class StateManager;
 
-// Color types for terminal rendering
 enum class ColorType {
     DEFAULT,
-    ACCENT,      // Cyan
-    ALERT,       // Red
-    SUCCESS,     // Green
-    WARNING,     // Orange
-    STATUS,      // Dim white
-    ERROR_COLOR, // Magenta
-    PENDING      // Yellow
+    ACCENT,
+    ALERT,
+    SUCCESS,
+    WARNING,
+    STATUS,
+    ERROR_COLOR,
+    PENDING
 };
 
-// Puzzle types
 enum class PuzzleType {
     LOG_ANALYSIS,
     METRICS_NAVIGATION,
@@ -35,7 +43,6 @@ enum class PuzzleType {
     CUSTOM
 };
 
-// Pressure levels for timer
 enum class PressureLevel {
     LOW,
     MEDIUM,
@@ -43,7 +50,6 @@ enum class PressureLevel {
     CRITICAL
 };
 
-// Theme types for audio
 enum class ThemeType {
     AMBIENT,
     FOCUS,
@@ -53,18 +59,14 @@ enum class ThemeType {
     FAILURE
 };
 
-// Process result from input handling
-struct ProcessResult {
+struct DEVESCAPE_API ProcessResult {
     std::string outputText;
     bool sessionEnded = false;
     bool success = false;
     bool invalidCommand = false;
-
-    ProcessResult() = default;
 };
 
-// Puzzle state
-struct PuzzleState {
+struct DEVESCAPE_API PuzzleState {
     std::string id;
     std::string title;
     bool solved = false;
@@ -77,8 +79,7 @@ struct PuzzleState {
     bool locked = true;
 };
 
-// Game state
-struct GameState {
+struct DEVESCAPE_API GameState {
     std::map<std::string, PuzzleState> puzzles;
     std::map<std::string, std::string> inventory;
     std::vector<std::string> discoveredClues;
@@ -88,8 +89,7 @@ struct GameState {
     void addEvent(const std::string& event);
 };
 
-// Session metadata
-struct SessionMetadata {
+struct DEVESCAPE_API SessionMetadata {
     std::string id;
     std::string roomName;
     std::string playerName;
@@ -97,11 +97,10 @@ struct SessionMetadata {
     std::chrono::system_clock::time_point checkpointedAt;
     int totalTimeSeconds;
     int timeElapsedSeconds = 0;
-    std::string status; // "in_progress", "completed", "failed", "abandoned"
+    std::string status;
 };
 
-// Framework context passed to plugins
-struct FrameworkContext {
+struct DEVESCAPE_API FrameworkContext {
     AudioManager* audioManager = nullptr;
     StateManager* stateManager = nullptr;
     std::string dataDirectory;
