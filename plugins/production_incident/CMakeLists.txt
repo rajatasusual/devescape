@@ -28,8 +28,10 @@ target_link_libraries(production_incident PRIVATE
 
 # Set output directory
 set_target_properties(production_incident PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugins
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugins
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/plugins"
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/plugins"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/plugins"
+    LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/plugins"
 )
 
 # On Windows, copy framework DLL to plugin directory
@@ -37,7 +39,7 @@ if(WIN32)
     add_custom_command(TARGET production_incident POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_FILE:devescape_framework>
-        ${CMAKE_BINARY_DIR}/plugins/$<CONFIG>/
+        $<TARGET_FILE_DIR:production_incident>
     )
 endif()
 
